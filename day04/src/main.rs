@@ -1,28 +1,48 @@
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io;
 
 fn main() -> io::Result<()> {
     let input = io::read_to_string(io::stdin())?;
     println!("Solution part 1:{}", card_points(&input));
+    println!("Solution part 2:{}", card_count(&input));
     Ok(())
 }
 
 fn card_points(input: &str) -> usize {
     let mut sum = 0;
-    let cards = parse_cards(input);
+    let (cards, _) = parse_cards(input);
     for card in cards {
         sum += card.score()
     }
     sum
 }
 
-fn parse_cards(input: &str) -> Vec<Card> {
+fn card_count(input: &str) -> usize {
+    let mut sum = 0;
+    let (cards, copies) = parse_cards(input);
+    for (ii, _card) in cards.iter().enumerate() {
+        let copy_count = copies[&ii];
+        sum += copy_count;
+    }
+    sum
+}
+
+fn parse_cards(input: &str) -> (Vec<Card>, HashMap<usize, usize>) {
     let mut cards = Vec::new();
-    for line in input.lines() {
+    let mut copies: HashMap<usize, usize> = HashMap::new();
+    for (ii, _) in input.lines().enumerate() {
+        copies.insert(ii, 1);
+    }
+
+    for (ii, line) in input.lines().enumerate() {
         let card = parse_line(line);
+        for jj in ii + 1..ii + 1 + card.win_count() {
+            *copies.get_mut(&jj).unwrap() += copies[&ii];
+        }
         cards.push(card);
     }
-    cards
+    (cards, copies)
 }
 
 fn parse_line(line: &str) -> Card {
@@ -42,18 +62,21 @@ struct Card {
 }
 
 impl Card {
-    fn score(&self) -> usize {
+    fn win_count(&self) -> usize {
         let mut wins = HashSet::new();
         for win in &self.winners {
             wins.insert(win);
         }
-        let match_count: u32 = self
-            .numbers
+        self.numbers
             .iter()
             .map(|nn| if wins.contains(nn) { 1 } else { 0 })
-            .sum();
+            .sum()
+    }
+
+    fn score(&self) -> usize {
+        let match_count = self.win_count();
         if match_count > 0 {
-            2_usize.pow(match_count - 1)
+            2_usize.pow(match_count as u32 - 1)
         } else {
             0
         }
@@ -105,5 +128,11 @@ Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11
     fn test_card_points() {
         let result = card_points(EXAMPLE_INPUT);
         assert_eq!(result, 13);
+    }
+
+    #[test]
+    fn test_card_count() {
+        let result = card_count(EXAMPLE_INPUT);
+        assert_eq!(result, 30);
     }
 }
